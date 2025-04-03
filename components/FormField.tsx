@@ -16,7 +16,7 @@ interface FormFieldProps<T extends FieldValues> {
   type?: "text" | "email" | "password";
 }
 
-export default function FormFields({
+export default function FormFields<T extends FieldValues>({
   control,
   name,
   label,
