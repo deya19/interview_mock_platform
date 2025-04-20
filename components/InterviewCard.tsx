@@ -13,9 +13,10 @@ export default async function InterviewCard({
   type,
   techstack,
   createdAt,
+  currentUserId,
 }: InterviewCardProps) {
   const feedback = userId && id ? await getFeedbackByInterviewId({interviewId: id, userId}) : null;
-
+  
   const normalizedType = /mix/gi.test(type) ? "Mixed" : type;
 
   const formattedDate = dayjs(
@@ -68,12 +69,12 @@ export default async function InterviewCard({
           <Button className="btn-primary">
             <Link
               href={
-                feedback
+                feedback && currentUserId === userId
                   ? `/interview/${id}/feedback`
                   : `/interview/${id}`
               }
             >
-              {feedback ? "Check Feedback" : "View Interview"}
+              {feedback && currentUserId === userId ? "Check Feedback" : "View Interview"} 
             </Link>
           </Button>
         </div>

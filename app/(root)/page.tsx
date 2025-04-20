@@ -12,11 +12,11 @@ export default async function Home() {
 
   const [userInterviews, latestInterviews] = await Promise.all([
     await getInterviewsByUserId(user?.id ?? ""),
-    await getLatestInterviews({ userId: user?.id }),
+    await getLatestInterviews({ userId: user?.id ?? "" }),
   ]);
 
-  const hasPastInterviews = userInterviews?.length > 0;
-  const hasUpComingInterviews = latestInterviews?.length > 0;
+  const hasPastInterviews = userInterviews?.length && userInterviews.length > 0;
+  const hasUpComingInterviews = latestInterviews?.length && latestInterviews.length > 0;
 
   return (
     <>
@@ -46,7 +46,7 @@ export default async function Home() {
         <div className="interviews-section">
           {hasPastInterviews ? (
             userInterviews?.map((interview) => (
-              <InterviewCard key={interview.id} {...interview} />
+              <InterviewCard key={interview.id} {...interview} currentUserId={user?.id ?? ""} />
             ))
           ) : (
             <p>You haven&apos;t taken any interviews yet</p>
@@ -60,7 +60,7 @@ export default async function Home() {
         <div className="interviews-section">
         {hasUpComingInterviews ? (
             latestInterviews?.map((interview) => (
-              <InterviewCard key={interview.id} {...interview} />
+              <InterviewCard key={interview.id} {...interview} currentUserId={user?.id ?? ""} />
             ))
           ) : (
             <p>There are no new interviews available</p>

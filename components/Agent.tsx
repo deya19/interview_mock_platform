@@ -1,12 +1,13 @@
 "use client";
 
-import { interviewer } from "@/constants";
-import { createFeedback } from "@/lib/actions/general.action";
+import Image from "next/image";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
 import { cn } from "@/lib/utils";
 import { vapi } from "@/lib/vapi.sdk";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import { interviewer } from "@/constants";
+import { createFeedback } from "@/lib/actions/general.action";
 
 enum CallStatus {
   INACTIVE = "INACTIVE",
@@ -15,7 +16,7 @@ enum CallStatus {
   FINISHED = "FINISHED",
 }
 
-export interface SaveMessage {
+interface SavedMessage {
   role: "user" | "system" | "assistant";
   content: string;
 }
@@ -23,18 +24,25 @@ export interface SaveMessage {
 export default function Agent({
   userName,
   userId,
-  type,
   interviewId,
+  feedbackId,
+  type,
   questions,
 }: AgentProps) {
   const router = useRouter();
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
-  const [messages, setMessages] = useState<SaveMessage[]>([]);
+  const [messages, setMessages] = useState<SavedMessage[]>([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [lastMessage, setLastMessage] = useState<string>("");
 
   useEffect(() => {
-    const onCallStart = () => setCallStatus(CallStatus.ACTIVE);
-    const onCallEnd = () => setCallStatus(CallStatus.FINISHED);
+    const onCallStart = () => {
+      setCallStatus(CallStatus.ACTIVE);
+    };
+
+    const onCallEnd = () => {
+      setCallStatus(CallStatus.FINISHED);
+    };
 
     const onMessage = (message: Message) => {
       if (message.type === "transcript" && message.transcriptType === "final") {
@@ -74,36 +82,37 @@ export default function Agent({
     };
   }, []);
 
-  //TODO: Create a server action that generate feedback
-  const handleGenerateFeedback = async (messages: SaveMessage[]) => {
-    console.log("Generate feedback here.");
+  useEffect(() => {
+    if (messages.length > 0) {
+      setLastMessage(messages[messages.length - 1].content);
+    }
 
-    const { success, feedbackId: id } = await createFeedback(
-      {
+    const handleGenerateFeedback = async (messages: SavedMessage[]) => {
+      console.log("handleGenerateFeedback");
+
+      const { success, feedbackId: id } = await createFeedback({
         interviewId: interviewId!,
         userId: userId!,
-        transcript: messages
+        transcript: messages,
+        feedbackId,
+      });
+
+      if (success && id) {
+        router.push(`/interview/${interviewId}/feedback`);
+      } else {
+        console.log("Error saving feedback");
+        router.push("/");
       }
-    );
+    };
 
-    if (success && id) {
-      router.push(`/interview/${interviewId}/feedback`);
-    } else {
-      console.log("Error saving feedback");
-      router.push("/");
-    }
-  };
-
-  useEffect(() => {
     if (callStatus === CallStatus.FINISHED) {
       if (type === "generate") {
         router.push("/");
-        // console.log("Generate feedback here.");
       } else {
         handleGenerateFeedback(messages);
       }
     }
-  }, [callStatus, messages, router, type, userId]);
+  }, [messages, callStatus, feedbackId, interviewId, router, type, userId]);
 
   const handleCall = async () => {
     setCallStatus(CallStatus.CONNECTING);
@@ -116,40 +125,35 @@ export default function Agent({
         },
       });
     } else {
-      let formattedQuestion = "";
-
+      let formattedQuestions = "";
       if (questions) {
-        formattedQuestion = questions
-        .map((question) => `- ${question}`)  
-        .join("\n");
+        formattedQuestions = questions
+          .map((question) => `- ${question}`)
+          .join("\n");
       }
 
       await vapi.start(interviewer, {
         variableValues: {
-          questions: formattedQuestion
-        }
+          questions: formattedQuestions,
+        },
       });
     }
   };
 
-  const handleDisconnect = async () => {
+  const handleDisconnect = () => {
     setCallStatus(CallStatus.FINISHED);
     vapi.stop();
   };
 
-  const lastMessages = messages[messages.length - 1]?.content;
-
-  const isCallInactiveOrFinished =
-    callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED;
-
   return (
     <>
       <div className="call-view">
+        {/* AI Interviewer Card */}
         <div className="card-interviewer">
           <div className="avatar">
             <Image
               src="/ai-avatar.png"
-              alt="vapi"
+              alt="profile-image"
               width={65}
               height={54}
               className="object-cover"
@@ -159,13 +163,14 @@ export default function Agent({
           <h3>AI Interviewer</h3>
         </div>
 
+        {/* User Profile Card */}
         <div className="card-border">
           <div className="card-content">
             <Image
               src="/user-avatar.png"
-              alt="user-avatar"
-              width={540}
-              height={540}
+              alt="profile-image"
+              width={539}
+              height={539}
               className="rounded-full object-cover size-[120px]"
             />
             <h3>{userName}</h3>
@@ -177,13 +182,13 @@ export default function Agent({
         <div className="transcript-border">
           <div className="transcript">
             <p
-              key={lastMessages}
+              key={lastMessage}
               className={cn(
                 "transition-opacity duration-500 opacity-0",
                 "animate-fadeIn opacity-100"
               )}
             >
-              {lastMessages}
+              {lastMessage}
             </p>
           </div>
         </div>
@@ -191,7 +196,7 @@ export default function Agent({
 
       <div className="w-full flex justify-center">
         {callStatus !== "ACTIVE" ? (
-          <button className="relative btn-call" onClick={handleCall}>
+          <button className="relative btn-call" onClick={() => handleCall()}>
             <span
               className={cn(
                 "absolute animate-ping rounded-full opacity-75",
@@ -206,11 +211,11 @@ export default function Agent({
             </span>
           </button>
         ) : (
-          <button className="btn-disconnect" onClick={handleDisconnect}>
+          <button className="btn-disconnect" onClick={() => handleDisconnect()}>
             End
           </button>
         )}
       </div>
     </>
   );
-}
+};

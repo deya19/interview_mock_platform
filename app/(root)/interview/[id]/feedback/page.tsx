@@ -104,7 +104,7 @@ export default async function Page({params}: RouteParams) {
           className="flex w-full justify-center"
         >
           <p className="text-sm font-semibold text-black text-center">
-            Retake Interview
+            {feedback ? "Retake Interview" : "View Interview"}
           </p>
         </Link>
       </Button>
